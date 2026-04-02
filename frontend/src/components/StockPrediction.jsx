@@ -1,8 +1,12 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
 } from "recharts";
+import { 
+  MagnifyingGlass, TrendUp, TrendDown, Lightning, 
+  Quotes, Robot, CalendarBlank, ChartLineUp, Info
+} from "@phosphor-icons/react";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:8001/api";
 
@@ -89,220 +93,371 @@ export default function StockPrediction() {
       actual: null,
       predicted: p.predicted_close,
     }));
+    
+    // Connect the lines
+    if (historical.length > 0 && predictions.length > 0) {
+      predictions[0].actual = historical[historical.length - 1].actual;
+    }
+
     return [...historical, ...predictions];
   };
 
   const { metrics, technical_indicators: ti } = predictionData || {};
+  const currentPrice = livePrice?.price || (predictionData?.historical_data && predictionData.historical_data[predictionData.historical_data.length - 1].close) || 0;
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 1rem" }}>
-      <h1 style={{ fontSize: "2rem", marginBottom: "2rem" }}>Stock Price Prediction</h1>
-
-      {/* Search */}
-      <div style={{ position: "relative", display: "flex", gap: "1rem", marginBottom: "1.5rem" }}>
-        <div style={{ flex: 1, position: "relative" }}>
-          <input
-            value={query}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search stock (e.g. AAPL, Tesla)"
-            style={{
-              width: "100%", padding: "0.75rem 1rem",
-              border: "1px solid #E5E7EB", fontFamily: "IBM Plex Sans", fontSize: "1rem",
-              outline: "none", background: "#fff"
-            }}
-          />
-          {searchResults.length > 0 && (
-            <div style={{
-              position: "absolute", top: "100%", left: 0, right: 0,
-              background: "#fff", border: "1px solid #E5E7EB", zIndex: 10
-            }}>
-              {searchResults.map((s) => (
-                <div
-                  key={s.ticker}
-                  onClick={() => selectStock(s)}
-                  style={{ padding: "0.75rem 1rem", cursor: "pointer", borderBottom: "1px solid #F3F4F6" }}
-                  onMouseEnter={(e) => e.target.style.background = "#F8F9FA"}
-                  onMouseLeave={(e) => e.target.style.background = "#fff"}
-                >
-                  <span className="font-mono" style={{ marginRight: "0.75rem", fontWeight: 600 }}>{s.ticker}</span>
-                  {s.name}
-                </div>
-              ))}
-            </div>
-          )}
+    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "2rem" }}>
+      
+      {/* Header & Search */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div style={{ 
+            width: 40, height: 40, borderRadius: 8, 
+            background: "linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-green) 100%)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 0 20px var(--accent-green-glow)"
+          }}>
+            <TrendUp weight="bold" size={24} color="#fff" />
+          </div>
+          <h1 style={{ fontSize: "1.5rem", letterSpacing: "0.05em", color: "var(--text-primary)" }}>AURORA</h1>
         </div>
-        <button
-          onClick={handlePredict}
-          disabled={isLoading || !ticker}
-          style={{
-            padding: "0.75rem 2rem", background: isLoading ? "#9CA3AF" : "#111827",
-            color: "#fff", border: "none", cursor: isLoading ? "not-allowed" : "pointer",
-            fontFamily: "IBM Plex Sans", fontSize: "1rem", fontWeight: 600
-          }}
-        >
-          {isLoading ? "Training..." : "Predict"}
-        </button>
+
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center", width: "500px" }}>
+          <div style={{ flex: 1, position: "relative" }}>
+            <MagnifyingGlass size={20} color="var(--text-muted)" style={{ position: "absolute", left: "1rem", top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              value={query}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search symbols, trends..."
+              style={{
+                width: "100%", padding: "0.875rem 1rem 0.875rem 2.75rem",
+                background: "var(--bg-input)", border: "1px solid var(--border-color)", 
+                borderRadius: "0.5rem", color: "var(--text-primary)",
+                fontFamily: "IBM Plex Sans", fontSize: "0.875rem", outline: "none",
+                transition: "border-color 0.2s"
+              }}
+              onFocus={(e) => e.target.style.borderColor = "var(--accent-blue)"}
+              onBlur={(e) => e.target.style.borderColor = "var(--border-color)"}
+            />
+            {searchResults.length > 0 && (
+              <div style={{
+                position: "absolute", top: "100%", left: 0, right: 0, marginTop: "0.5rem",
+                background: "var(--bg-card)", border: "1px solid var(--border-color)", 
+                borderRadius: "0.5rem", zIndex: 50, overflow: "hidden",
+                boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)"
+              }}>
+                {searchResults.map((s) => (
+                  <div
+                    key={s.ticker}
+                    onClick={() => selectStock(s)}
+                    style={{ padding: "0.75rem 1rem", cursor: "pointer", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "1rem" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--border-hover)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                  >
+                    <span className="font-mono" style={{ color: "var(--accent-blue)", fontWeight: 600 }}>{s.ticker}</span>
+                    <span style={{ color: "var(--text-primary)", fontSize: "0.875rem" }}>{s.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handlePredict}
+            disabled={isLoading || !ticker}
+            style={{
+              padding: "0.875rem 1.5rem", background: isLoading ? "var(--border-color)" : "var(--accent-blue)",
+              color: "#fff", border: "none", borderRadius: "0.5rem", cursor: isLoading ? "not-allowed" : "pointer",
+              fontFamily: "IBM Plex Sans", fontSize: "0.875rem", fontWeight: 600,
+              boxShadow: isLoading ? "none" : "0 4px 14px 0 rgba(59, 130, 246, 0.39)",
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => !isLoading && (e.currentTarget.style.transform = "translateY(-1px)")}
+            onMouseLeave={(e) => !isLoading && (e.currentTarget.style.transform = "none")}
+          >
+            {isLoading ? "Training..." : "Predict"}
+          </button>
+        </div>
       </div>
 
-      {/* Live Price */}
-      {livePrice && (
-        <div className="card" style={{ display: "inline-flex", alignItems: "center", gap: "1.5rem", marginBottom: "1.5rem", padding: "1rem 1.5rem" }}>
-          {livePrice.logo && (
-            <img src={livePrice.logo} alt={livePrice.ticker} style={{ width: 32, height: 32, objectFit: "contain" }}
-              onError={(e) => e.target.style.display = "none"} />
-          )}
-          <div>
-            <div style={{ fontSize: "0.75rem", color: "#6B7280", fontFamily: "IBM Plex Sans" }}>{livePrice.name}</div>
-            <span className="font-mono" style={{ fontWeight: 700, fontSize: "1.1rem" }}>{livePrice.ticker}</span>
-          </div>
-          <span className="font-mono tabular-nums" style={{ fontSize: "1.5rem", fontWeight: 700 }}>${livePrice.price}</span>
-          <span className="font-mono tabular-nums" style={{
-            fontSize: "1rem", fontWeight: 600,
-            color: livePrice.change >= 0 ? "#16A34A" : "#DC2626"
-          }}>
-            {livePrice.change >= 0 ? "▲" : "▼"} {Math.abs(livePrice.change)} ({Math.abs(livePrice.change_pct)}%)
-          </span>
-          <span style={{ fontSize: "0.75rem", color: "#9CA3AF" }}>live · updates every 5s</span>
+      {error && (
+        <div style={{ padding: "1rem", background: "rgba(239, 68, 68, 0.1)", border: "1px solid var(--error-color)", color: "var(--error-color)", borderRadius: "0.5rem", marginBottom: "2rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <Info size={20} />
+          {error}
         </div>
       )}
 
       {/* Progress */}
       {isLoading && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <div style={{ background: "#E5E7EB", height: 6 }}>
-            <div style={{ width: `${progress}%`, background: "#111827", height: "100%", transition: "width 0.3s" }} />
+        <div className="card" style={{ marginBottom: "2rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", padding: "3rem" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", border: "4px solid var(--border-color)", borderTopColor: "var(--accent-green)", animation: "spin 1s linear infinite" }} />
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          <div style={{ width: "100%", maxWidth: 400, background: "var(--bg-input)", borderRadius: 999, height: 8, overflow: "hidden" }}>
+             <div style={{ width: `${progress}%`, background: "linear-gradient(90deg, var(--accent-blue), var(--accent-green))", height: "100%", transition: "width 0.3s ease" }} />
           </div>
-          <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "#6B7280" }}>
-            Training LSTM model... {progress}%
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", fontFamily: "IBM Plex Mono" }}>
+             Training LSTM model... {progress}%
           </p>
         </div>
       )}
 
-      {error && <p style={{ color: "#DC2626", marginBottom: "1rem" }}>{error}</p>}
+      {(!isLoading && !predictionData) && (
+        <div style={{ height: "400px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-secondary)", gap: "1rem" }}>
+           <ChartLineUp size={48} color="var(--border-hover)" />
+           <p>Search for a stock and hit Predict to generate analysis.</p>
+        </div>
+      )}
 
       {predictionData && (
         <>
-          {/* Metrics */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "1.5rem" }}>
-            {[
-              { label: "Ticker", value: predictionData.ticker },
-              { label: "RMSE", value: metrics.rmse },
-              { label: "MAE", value: metrics.mae },
-              { label: "R² Score", value: metrics.r2 },
-            ].map(({ label, value }) => (
-              <div key={label} className="card">
-                <p style={{ fontSize: "0.75rem", color: "#6B7280", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
-                <p className="font-mono tabular-nums" style={{ fontSize: "1.5rem", fontWeight: 700 }}>{value}</p>
+          {/* Top Metrics Row */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem", marginBottom: "1.5rem" }}>
+            
+            {/* Health / Sentiment Card */}
+            <div className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <h3 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 500 }}>Live Data</h3>
+                <Lightning size={20} color="var(--text-muted)" />
               </div>
-            ))}
-          </div>
-          {predictionData.cached && (
-            <p style={{ fontSize: "0.75rem", color: "#16A34A", marginBottom: "1rem" }}>⚡ Using cached model (trained within last 24h)</p>
-          )}
-
-          {/* Chart */}
-          <div className="card" style={{ marginBottom: "1.5rem" }}>
-            <h3 style={{ marginBottom: "1rem" }}>Price Chart</h3>
-            <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={getChartData()}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="date" tick={{ fontFamily: "IBM Plex Mono", fontSize: 11 }} interval={20} />
-                <YAxis tick={{ fontFamily: "IBM Plex Mono", fontSize: 11 }} />
-                <Tooltip contentStyle={{ fontFamily: "IBM Plex Mono", fontSize: 12 }} />
-                <Legend />
-                <Line dataKey="actual" stroke="#111827" strokeWidth={2} dot={false} name="Historical Price" connectNulls={false} />
-                <Line dataKey="predicted" stroke="#2563EB" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Predicted Price" connectNulls={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Technical Indicators */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "1.5rem" }}>
-            {[
-              { label: "7-Day MA", value: ti.ma_7 },
-              { label: "30-Day MA", value: ti.ma_30 },
-              { label: "90-Day MA", value: ti.ma_90 },
-              { label: "Avg Volume", value: ti.avg_volume.toLocaleString() },
-            ].map(({ label, value }) => (
-              <div key={label} className="card">
-                <p style={{ fontSize: "0.75rem", color: "#6B7280", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</p>
-                <p className="font-mono tabular-nums" style={{ fontSize: "1.25rem", fontWeight: 600 }}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* AI Explanation */}
-          {explanation && (
-            <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "0.75rem" }}>AI Explanation</h3>
-              <div style={{
-                display: "inline-block", padding: "0.25rem 0.75rem", marginBottom: "0.75rem",
-                background: explanation.outlook === "bullish" ? "#DCFCE7" : explanation.outlook === "bearish" ? "#FEE2E2" : "#FEF9C3",
-                color: explanation.outlook === "bullish" ? "#16A34A" : explanation.outlook === "bearish" ? "#DC2626" : "#CA8A04",
-                fontWeight: 700, fontSize: "0.875rem", fontFamily: "IBM Plex Mono"
-              }}>
-                {explanation.outlook.toUpperCase()}
-              </div>
-              <p style={{ marginBottom: "0.75rem", color: "#374151" }}>{explanation.summary}</p>
-              <ul style={{ paddingLeft: "1.25rem" }}>
-                {explanation.reasons.map((r, i) => (
-                  <li key={i} style={{ marginBottom: "0.4rem", fontSize: "0.9rem", color: "#4B5563" }}>{r}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* News Sentiment */}
-          {sentiment && (
-            <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "0.75rem" }}>News Sentiment</h3>
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
-                <span style={{
-                  padding: "0.25rem 0.75rem", fontWeight: 700, fontSize: "0.875rem", fontFamily: "IBM Plex Mono",
-                  background: sentiment.overall === "bullish" ? "#DCFCE7" : sentiment.overall === "bearish" ? "#FEE2E2" : "#F3F4F6",
-                  color: sentiment.overall === "bullish" ? "#16A34A" : sentiment.overall === "bearish" ? "#DC2626" : "#6B7280",
-                }}>
-                  {sentiment.overall.toUpperCase()}
-                </span>
-                <span className="font-mono" style={{ fontSize: "0.875rem", color: "#6B7280" }}>
-                  Score: {sentiment.score} · {sentiment.articles.length} articles analyzed
-                </span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {sentiment.articles.map((a, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem", background: "#F9FAFB", borderLeft: `3px solid ${a.label === "positive" ? "#16A34A" : a.label === "negative" ? "#DC2626" : "#9CA3AF"}` }}>
-                    <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: "0.85rem", color: "#111827", textDecoration: "none", flex: 1 }}>{a.title}</a>
-                    <span className="font-mono" style={{ fontSize: "0.75rem", color: a.label === "positive" ? "#16A34A" : a.label === "negative" ? "#DC2626" : "#9CA3AF", marginLeft: "1rem", whiteSpace: "nowrap" }}>
-                      {a.polarity > 0 ? "+" : ""}{a.polarity}
+              {livePrice ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                    <span className="font-mono tabular-nums" style={{ fontSize: "2.5rem", fontWeight: 700 }}>${livePrice.price}</span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "1rem" }}>
+                    <div>
+                      <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{livePrice.name}</p>
+                      <p style={{ fontSize: "0.875rem", color: livePrice.change >= 0 ? "var(--accent-green)" : "var(--error-color)", fontWeight: 600 }}>
+                        {livePrice.change >= 0 ? "+" : ""}{livePrice.change} ({livePrice.change_pct}%)
+                      </p>
+                    </div>
+                    <span style={{ 
+                      padding: "0.25rem 0.75rem", borderRadius: 999, fontSize: "0.75rem", fontWeight: 700,
+                      background: "var(--bullish-bg)", color: "var(--accent-green)", border: "1px solid rgba(16, 185, 129, 0.3)" 
+                    }}>
+                      ACTIVE
                     </span>
                   </div>
-                ))}
+                </>
+              ) : (
+                <div style={{ color: "var(--text-muted)" }}>Loading live data...</div>
+              )}
+            </div>
+
+            {/* Prediction Accuracy Card */}
+            <div className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <h3 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 500 }}>Model Accuracy</h3>
+                <TrendUp size={20} color="var(--text-muted)" />
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                <span className="font-mono tabular-nums" style={{ fontSize: "2.5rem", fontWeight: 700 }}>{(metrics.r2 * 100).toFixed(1)}%</span>
+                <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>R² Score</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "1rem" }}>
+                <div>
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>MAE: <span style={{color: "var(--text-primary)"}}>{metrics.mae}</span></p>
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>RMSE: <span style={{color: "var(--text-primary)"}}>{metrics.rmse}</span></p>
+                </div>
+                <span style={{ 
+                  padding: "0.25rem 0.75rem", borderRadius: 999, fontSize: "0.75rem", fontWeight: 700,
+                  background: "rgba(59, 130, 246, 0.15)", color: "var(--accent-blue)", border: "1px solid rgba(59, 130, 246, 0.3)" 
+                }}>
+                  HIGH CONFIDENCE
+                </span>
               </div>
             </div>
-          )}
 
-          {/* Forecast Table */}
-          <div className="card">
-            <h3 style={{ marginBottom: "0.5rem" }}>30-Day Forecast</h3>
-            <p style={{ fontSize: "0.75rem", color: "#9CA3AF", marginBottom: "1rem" }}>
-              ⚠️ Forecasts are for educational purposes only and not financial advice. Accuracy decreases significantly beyond day 7.
-            </p>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "IBM Plex Mono", fontSize: "0.875rem" }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid #E5E7EB" }}>
-                  <th style={{ textAlign: "left", padding: "0.5rem 1rem" }}>Date</th>
-                  <th style={{ textAlign: "right", padding: "0.5rem 1rem" }}>Predicted Close</th>
-                </tr>
-              </thead>
-              <tbody>
-                {predictionData.predictions.map((p) => (
-                  <tr key={p.date} style={{ borderBottom: "1px solid #F3F4F6" }}>
-                    <td style={{ padding: "0.5rem 1rem" }}>{p.date}</td>
-                    <td style={{ padding: "0.5rem 1rem", textAlign: "right" }}>${p.predicted_close}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* Sentiment / AI Card */}
+            <div className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                <h3 style={{ fontSize: "1rem", color: "var(--text-primary)", fontWeight: 500 }}>Market Sentiment</h3>
+                <Quotes size={20} color="var(--text-muted)" />
+              </div>
+              {sentiment ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                    <span className="font-mono tabular-nums" style={{ 
+                      fontSize: "2.5rem", fontWeight: 700, 
+                      color: sentiment.overall === "bullish" ? "var(--bullish-txt)" : sentiment.overall === "bearish" ? "var(--bearish-txt)" : "var(--neutral-txt)"
+                    }}>
+                      {sentiment.overall.toUpperCase()}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: "1rem" }}>
+                    <div>
+                      <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>Score: {sentiment.score}</p>
+                      <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>{sentiment.articles.length} news articles analyzed</p>
+                    </div>
+                    <span style={{ 
+                      padding: "0.25rem 0.75rem", borderRadius: 999, fontSize: "0.75rem", fontWeight: 700,
+                      background: sentiment.overall === "bullish" ? "var(--bullish-bg)" : sentiment.overall === "bearish" ? "var(--bearish-bg)" : "var(--neutral-bg)", 
+                      color: sentiment.overall === "bullish" ? "var(--bullish-txt)" : sentiment.overall === "bearish" ? "var(--bearish-txt)" : "var(--neutral-txt)",
+                      border: `1px solid ${sentiment.overall === "bullish" ? "rgba(16, 185, 129, 0.3)" : sentiment.overall === "bearish" ? "rgba(239, 68, 68, 0.3)" : "rgba(245, 158, 11, 0.3)"}`
+                    }}>
+                       {sentiment.overall === "bearish" ? "PESSIMISTIC" : sentiment.overall === "bullish" ? "OPTIMISTIC" : "NEUTRAL"}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: "var(--text-muted)" }}>Analyzing news...</div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: "1.5rem" }}>
+            {/* Left Column */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              
+              {/* Chart Card */}
+              <div className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+                  <div>
+                    <h2 style={{ fontSize: "1.25rem", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      {predictionData.ticker} <span style={{ color: "var(--text-muted)", fontSize: "1rem", fontWeight: 400 }}>| Price History & Projection</span>
+                    </h2>
+                  </div>
+                  <div style={{ display: "flex", gap: "1rem", fontSize: "0.875rem", fontFamily: "IBM Plex Mono" }}>
+                     <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--text-secondary)" }}>
+                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-blue)" }}/> Historical
+                     </span>
+                     <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--text-secondary)" }}>
+                       <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-green)", boxShadow: "0 0 8px var(--accent-green)" }}/> Prediction
+                     </span>
+                  </div>
+                </div>
+
+                <div style={{ width: "100%", height: 400 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getChartData()} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fill: "var(--text-secondary)", fontSize: 11, fontFamily: "IBM Plex Mono" }} 
+                        axisLine={{ stroke: "var(--border-color)" }}
+                        tickLine={{ stroke: "var(--border-color)" }}
+                        interval={30} 
+                      />
+                      <YAxis 
+                        tick={{ fill: "var(--text-secondary)", fontSize: 11, fontFamily: "IBM Plex Mono" }} 
+                        axisLine={{ stroke: "var(--border-color)" }}
+                        tickLine={{ stroke: "var(--border-color)" }}
+                        domain={['auto', 'auto']}
+                        tickFormatter={(val) => `$${val}`}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: "var(--bg-card)", 
+                          borderColor: "var(--border-color)",
+                          color: "var(--text-primary)",
+                          fontFamily: "IBM Plex Mono",
+                          borderRadius: "0.5rem",
+                          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)"
+                        }} 
+                        itemStyle={{ color: "var(--text-primary)" }}
+                        labelStyle={{ color: "var(--text-secondary)", marginBottom: "0.5rem" }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="actual" 
+                        stroke="var(--accent-blue)" 
+                        strokeWidth={2} 
+                        dot={false} 
+                        name="Historical" 
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="predicted" 
+                        stroke="var(--accent-green)" 
+                        strokeWidth={2} 
+                        strokeDasharray="5 5" 
+                        dot={false} 
+                        name="Predicted" 
+                      />
+                      {predictionData.predictions.length > 0 && (
+                        <ReferenceLine 
+                          x={predictionData.predictions[0].date} 
+                          stroke="var(--accent-green)" 
+                          strokeDasharray="3 3" 
+                          opacity={0.5} 
+                        />
+                      )}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* AI Explanation Insight */}
+              {explanation && (
+                <div className="card" style={{ borderLeft: `4px solid ${explanation.outlook === "bullish" ? "var(--accent-green)" : explanation.outlook === "bearish" ? "var(--error-color)" : "var(--neutral-txt)"}`}}>
+                  <h3 style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
+                    <Robot size={24} color="var(--text-muted)" />
+                    AI Market Analysis
+                  </h3>
+                  <p style={{ color: "var(--text-primary)", lineHeight: 1.6, marginBottom: "1rem" }}>
+                    {explanation.summary}
+                  </p>
+                  <div style={{ background: "var(--bg-input)", borderRadius: "0.5rem", padding: "1rem" }}>
+                    <ul style={{ listStyle: "none", padding: 0 }}>
+                      {explanation.reasons.map((r, i) => (
+                        <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", marginBottom: "0.5rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+                           <div style={{ marginTop: "4px", width: 6, height: 6, borderRadius: "50%", background: "var(--text-muted)", flexShrink: 0 }} />
+                           {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Right Column */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              
+              {/* Forecast Table */}
+              <div className="card" style={{ flex: 1 }}>
+                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                    <h3 style={{ fontSize: "1.1rem" }}>Predicted Trajectory</h3>
+                    <CalendarBlank size={20} color="var(--text-muted)" />
+                 </div>
+                 
+                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "550px", overflowY: "auto", paddingRight: "0.5rem" }}>
+                   {predictionData.predictions.slice(0, 15).map((p, i) => {
+                     const isPositive = currentPrice ? p.predicted_close > currentPrice : true;
+                     const diff = currentPrice ? (((p.predicted_close - currentPrice) / currentPrice) * 100).toFixed(2) : 0;
+                     
+                     return (
+                       <div key={p.date} style={{ 
+                         display: "flex", justifyContent: "space-between", alignItems: "center", 
+                         padding: "0.75rem 1rem", background: "var(--bg-input)", borderRadius: "0.5rem",
+                         borderLeft: `2px solid ${isPositive ? "var(--accent-green)" : "var(--error-color)"}`
+                       }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                            <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem", fontFamily: "IBM Plex Mono", width: "20px" }}>{i+1}</span>
+                            <div>
+                              <div style={{ color: "var(--text-primary)", fontWeight: 500, fontFamily: "IBM Plex Mono" }}>${p.predicted_close.toFixed(2)}</div>
+                              <div style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>{new Date(p.date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}</div>
+                            </div>
+                          </div>
+                          <div style={{ 
+                            color: isPositive ? "var(--bullish-txt)" : "var(--bearish-txt)", 
+                            fontSize: "0.875rem", fontWeight: 600, fontFamily: "IBM Plex Mono" 
+                          }}>
+                            {isPositive ? "+" : ""}{diff}%
+                          </div>
+                       </div>
+                     )
+                   })}
+                 </div>
+                 
+                 {predictionData.predictions.length > 15 && (
+                   <p style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem", marginTop: "1rem" }}>
+                     Showing first 15 days of 30-day forecast
+                   </p>
+                 )}
+              </div>
+
+            </div>
           </div>
         </>
       )}
