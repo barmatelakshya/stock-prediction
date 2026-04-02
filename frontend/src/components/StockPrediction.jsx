@@ -183,6 +183,9 @@ export default function StockPrediction() {
               </div>
             ))}
           </div>
+          {predictionData.cached && (
+            <p style={{ fontSize: "0.75rem", color: "#16A34A", marginBottom: "1rem" }}>⚡ Using cached model (trained within last 24h)</p>
+          )}
 
           {/* Chart */}
           <div className="card" style={{ marginBottom: "1.5rem" }}>
@@ -217,7 +220,10 @@ export default function StockPrediction() {
 
           {/* Forecast Table */}
           <div className="card">
-            <h3 style={{ marginBottom: "1rem" }}>30-Day Forecast</h3>
+            <h3 style={{ marginBottom: "0.5rem" }}>30-Day Forecast</h3>
+            <p style={{ fontSize: "0.75rem", color: "#9CA3AF", marginBottom: "1rem" }}>
+              ⚠️ Forecasts are for educational purposes only and not financial advice. Accuracy decreases significantly beyond day 7.
+            </p>
             <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "IBM Plex Mono", fontSize: "0.875rem" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #E5E7EB" }}>

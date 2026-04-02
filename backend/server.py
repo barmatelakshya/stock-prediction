@@ -6,9 +6,12 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping
 from datetime import datetime, timedelta
+import os
+import json
 
 app = FastAPI()
 
@@ -18,6 +21,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+MODELS_DIR = "models"
+os.makedirs(MODELS_DIR, exist_ok=True)
+CACHE_HOURS = 24
 
 STOCKS = [
     # Tech
@@ -147,6 +154,16 @@ def build_lstm_model():
     return model
 
 
+def is_cache_valid(ticker: str) -> bool:
+    meta_path = f"{MODELS_DIR}/{ticker}_meta.json"
+    if not os.path.exists(meta_path):
+        return False
+    with open(meta_path) as f:
+        meta = json.load(f)
+    trained_at = datetime.fromisoformat(meta["trained_at"])
+    return (datetime.now() - trained_at).total_seconds() < CACHE_HOURS * 3600
+
+
 def prepare_data(prices):
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled = scaler.fit_transform(prices.reshape(-1, 1))
@@ -215,16 +232,33 @@ def get_stock_data(ticker: str):
 def predict(req: PredictRequest):
     df = fetch_stock_data(req.ticker)
     prices = df["Close"].values
-
     split = int(len(prices) * 0.8)
-    train_prices = prices[:split]
-    test_prices = prices[split:]
+    model_path = f"{MODELS_DIR}/{req.ticker}.keras"
 
-    X_train, y_train, scaler = prepare_data(train_prices)
-    X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+    all_scaled_data = MinMaxScaler(feature_range=(0, 1)).fit_transform(prices.reshape(-1, 1))
 
-    model = build_lstm_model()
-    model.fit(X_train, y_train, epochs=10, batch_size=32, verbose=0)
+    if is_cache_valid(req.ticker) and os.path.exists(model_path):
+        model = load_model(model_path)
+        # Load scaler params from meta
+        with open(f"{MODELS_DIR}/{req.ticker}_meta.json") as f:
+            meta = json.load(f)
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        scaler.fit(np.array(meta["price_range"]).reshape(-1, 1))
+    else:
+        train_prices = prices[:split]
+        X_train, y_train, scaler = prepare_data(train_prices)
+        X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+
+        model = build_lstm_model()
+        es = EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
+        model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.1, callbacks=[es], verbose=0)
+        model.save(model_path)
+
+        with open(f"{MODELS_DIR}/{req.ticker}_meta.json", "w") as f:
+            json.dump({
+                "trained_at": datetime.now().isoformat(),
+                "price_range": [float(prices.min()), float(prices.max())]
+            }, f)
 
     # Test predictions
     all_scaled = scaler.transform(prices.reshape(-1, 1))
@@ -262,6 +296,7 @@ def predict(req: PredictRequest):
 
     return {
         "ticker": req.ticker,
+        "cached": is_cache_valid(req.ticker),
         "metrics": {"rmse": rmse, "mae": mae, "r2": r2},
         "historical_data": historical,
         "predictions": predictions,
