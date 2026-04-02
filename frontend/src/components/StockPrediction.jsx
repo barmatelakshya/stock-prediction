@@ -1,10 +1,10 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from "recharts";
 import { 
-  MagnifyingGlass, TrendUp, TrendDown, Lightning, 
+  MagnifyingGlass, TrendUp, Lightning, 
   Quotes, Robot, CalendarBlank, ChartLineUp, Info
 } from "@phosphor-icons/react";
 
@@ -102,7 +102,7 @@ export default function StockPrediction() {
     return [...historical, ...predictions];
   };
 
-  const { metrics, technical_indicators: ti } = predictionData || {};
+  const { metrics } = predictionData || {};
   const currentPrice = livePrice?.price || (predictionData?.historical_data && predictionData.historical_data[predictionData.historical_data.length - 1].close) || 0;
 
   return (
