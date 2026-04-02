@@ -188,6 +188,18 @@ def search_stocks(req: SearchRequest):
         return {"results": []}
 
 
+@app.get("/api/stocks/{ticker}/live")
+def get_live_price(ticker: str):
+    stock = yf.Ticker(ticker)
+    info = stock.fast_info
+    return {
+        "ticker": ticker,
+        "price": round(float(info.last_price), 2),
+        "change": round(float(info.last_price - info.previous_close), 2),
+        "change_pct": round(float((info.last_price - info.previous_close) / info.previous_close * 100), 2),
+    }
+
+
 @app.get("/api/stocks/{ticker}/data")
 def get_stock_data(ticker: str):
     df = fetch_stock_data(ticker)
