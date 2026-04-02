@@ -7,3 +7,4 @@ keras
 numpy
 pandas
 python-multipart
+textblob

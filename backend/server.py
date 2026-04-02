@@ -12,6 +12,7 @@ from tensorflow.keras.callbacks import EarlyStopping
 from datetime import datetime, timedelta
 import os
 import json
+from textblob import TextBlob
 
 app = FastAPI()
 
@@ -301,4 +302,75 @@ def predict(req: PredictRequest):
         "historical_data": historical,
         "predictions": predictions,
         "technical_indicators": calculate_indicators(df),
+    }
+
+
+@app.get("/api/stocks/{ticker}/sentiment")
+def get_sentiment(ticker: str):
+    stock = yf.Ticker(ticker)
+    news = stock.news[:10] if stock.news else []
+
+    articles = []
+    total_polarity = 0
+    for item in news:
+        title = item.get("content", {}).get("title", "")
+        if not title:
+            continue
+        blob = TextBlob(title)
+        polarity = blob.sentiment.polarity
+        total_polarity += polarity
+        articles.append({
+            "title": title,
+            "url": item.get("content", {}).get("canonicalUrl", {}).get("url", ""),
+            "polarity": round(polarity, 3),
+            "label": "positive" if polarity > 0.1 else "negative" if polarity < -0.1 else "neutral",
+        })
+
+    avg = total_polarity / len(articles) if articles else 0
+    overall = "bullish" if avg > 0.1 else "bearish" if avg < -0.1 else "neutral"
+    return {"ticker": ticker, "overall": overall, "score": round(avg, 3), "articles": articles}
+
+
+@app.get("/api/stocks/{ticker}/explain")
+def explain(ticker: str):
+    df = fetch_stock_data(ticker)
+    close = df["Close"]
+    volume = df["Volume"]
+
+    price_7d = round(((close.iloc[-1] - close.iloc[-7]) / close.iloc[-7]) * 100, 2)
+    price_30d = round(((close.iloc[-1] - close.iloc[-30]) / close.iloc[-30]) * 100, 2)
+    vol_change = round(((volume.iloc[-5:].mean() - volume.iloc[-30:-5].mean()) / volume.iloc[-30:-5].mean()) * 100, 2)
+    ma7 = close.rolling(7).mean().iloc[-1]
+    ma30 = close.rolling(30).mean().iloc[-1]
+    above_ma = close.iloc[-1] > ma30
+
+    reasons = []
+    if price_7d > 2:
+        reasons.append(f"Price up {price_7d}% in the last 7 days — short-term upward momentum")
+    elif price_7d < -2:
+        reasons.append(f"Price down {abs(price_7d)}% in the last 7 days — short-term selling pressure")
+
+    if price_30d > 5:
+        reasons.append(f"Strong 30-day trend: +{price_30d}%")
+    elif price_30d < -5:
+        reasons.append(f"Weak 30-day trend: {price_30d}%")
+
+    if vol_change > 20:
+        reasons.append(f"Volume spike of +{vol_change}% vs 30-day average — increased market interest")
+    elif vol_change < -20:
+        reasons.append(f"Volume drop of {vol_change}% — declining market interest")
+
+    if above_ma:
+        reasons.append(f"Price (${round(float(close.iloc[-1]),2)}) is above 30-day MA (${round(float(ma30),2)}) — bullish signal")
+    else:
+        reasons.append(f"Price (${round(float(close.iloc[-1]),2)}) is below 30-day MA (${round(float(ma30),2)}) — bearish signal")
+
+    outlook = "bullish" if price_7d > 0 and above_ma else "bearish" if price_7d < 0 and not above_ma else "mixed"
+
+    return {
+        "ticker": ticker,
+        "outlook": outlook,
+        "summary": f"Based on recent price action and volume, the outlook for {ticker} appears {outlook}.",
+        "reasons": reasons,
+        "stats": {"price_7d": price_7d, "price_30d": price_30d, "vol_change": vol_change},
     }

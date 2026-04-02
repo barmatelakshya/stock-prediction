@@ -15,6 +15,8 @@ export default function StockPrediction() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [livePrice, setLivePrice] = useState(null);
+  const [sentiment, setSentiment] = useState(null);
+  const [explanation, setExplanation] = useState(null);
   const progressRef = useRef(null);
   const liveRef = useRef(null);
 
@@ -43,6 +45,10 @@ export default function StockPrediction() {
     };
     fetchLive();
     liveRef.current = setInterval(fetchLive, 5000);
+
+    // Fetch sentiment + explanation in parallel
+    axios.get(`${API}/stocks/${t}/sentiment`).then(r => setSentiment(r.data)).catch(() => {});
+    axios.get(`${API}/stocks/${t}/explain`).then(r => setExplanation(r.data)).catch(() => {});
   };
 
   const handlePredict = async () => {
@@ -217,6 +223,56 @@ export default function StockPrediction() {
               </div>
             ))}
           </div>
+
+          {/* AI Explanation */}
+          {explanation && (
+            <div className="card" style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ marginBottom: "0.75rem" }}>🧠 AI Explanation</h3>
+              <div style={{
+                display: "inline-block", padding: "0.25rem 0.75rem", marginBottom: "0.75rem",
+                background: explanation.outlook === "bullish" ? "#DCFCE7" : explanation.outlook === "bearish" ? "#FEE2E2" : "#FEF9C3",
+                color: explanation.outlook === "bullish" ? "#16A34A" : explanation.outlook === "bearish" ? "#DC2626" : "#CA8A04",
+                fontWeight: 700, fontSize: "0.875rem", fontFamily: "IBM Plex Mono"
+              }}>
+                {explanation.outlook.toUpperCase()}
+              </div>
+              <p style={{ marginBottom: "0.75rem", color: "#374151" }}>{explanation.summary}</p>
+              <ul style={{ paddingLeft: "1.25rem" }}>
+                {explanation.reasons.map((r, i) => (
+                  <li key={i} style={{ marginBottom: "0.4rem", fontSize: "0.9rem", color: "#4B5563" }}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* News Sentiment */}
+          {sentiment && (
+            <div className="card" style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ marginBottom: "0.75rem" }}>📰 News Sentiment</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                <span style={{
+                  padding: "0.25rem 0.75rem", fontWeight: 700, fontSize: "0.875rem", fontFamily: "IBM Plex Mono",
+                  background: sentiment.overall === "bullish" ? "#DCFCE7" : sentiment.overall === "bearish" ? "#FEE2E2" : "#F3F4F6",
+                  color: sentiment.overall === "bullish" ? "#16A34A" : sentiment.overall === "bearish" ? "#DC2626" : "#6B7280",
+                }}>
+                  {sentiment.overall.toUpperCase()}
+                </span>
+                <span className="font-mono" style={{ fontSize: "0.875rem", color: "#6B7280" }}>
+                  Score: {sentiment.score} · {sentiment.articles.length} articles analyzed
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {sentiment.articles.map((a, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem", background: "#F9FAFB", borderLeft: `3px solid ${a.label === "positive" ? "#16A34A" : a.label === "negative" ? "#DC2626" : "#9CA3AF"}` }}>
+                    <a href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: "0.85rem", color: "#111827", textDecoration: "none", flex: 1 }}>{a.title}</a>
+                    <span className="font-mono" style={{ fontSize: "0.75rem", color: a.label === "positive" ? "#16A34A" : a.label === "negative" ? "#DC2626" : "#9CA3AF", marginLeft: "1rem", whiteSpace: "nowrap" }}>
+                      {a.polarity > 0 ? "+" : ""}{a.polarity}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Forecast Table */}
           <div className="card">
