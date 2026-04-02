@@ -227,7 +227,7 @@ export default function StockPrediction() {
           {/* AI Explanation */}
           {explanation && (
             <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "0.75rem" }}>🧠 AI Explanation</h3>
+              <h3 style={{ marginBottom: "0.75rem" }}>AI Explanation</h3>
               <div style={{
                 display: "inline-block", padding: "0.25rem 0.75rem", marginBottom: "0.75rem",
                 background: explanation.outlook === "bullish" ? "#DCFCE7" : explanation.outlook === "bearish" ? "#FEE2E2" : "#FEF9C3",
@@ -248,7 +248,7 @@ export default function StockPrediction() {
           {/* News Sentiment */}
           {sentiment && (
             <div className="card" style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ marginBottom: "0.75rem" }}>📰 News Sentiment</h3>
+              <h3 style={{ marginBottom: "0.75rem" }}>News Sentiment</h3>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
                 <span style={{
                   padding: "0.25rem 0.75rem", fontWeight: 700, fontSize: "0.875rem", fontFamily: "IBM Plex Mono",
