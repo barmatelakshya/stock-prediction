@@ -6,12 +6,11 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import LSTM, Dense, Dropout
-from tensorflow.keras.callbacks import EarlyStopping
+from sklearn.ensemble import GradientBoostingRegressor
 from datetime import datetime, timedelta
 import os
 import json
+import joblib
 from textblob import TextBlob
 
 app = FastAPI()
@@ -142,17 +141,8 @@ def fetch_stock_data(ticker: str):
     return df
 
 
-def build_lstm_model():
-    model = Sequential([
-        LSTM(50, return_sequences=True, input_shape=(LOOKBACK, 1)),
-        Dropout(0.2),
-        LSTM(50, return_sequences=False),
-        Dropout(0.2),
-        Dense(25),
-        Dense(1)
-    ])
-    model.compile(optimizer="adam", loss="mean_squared_error")
-    return model
+def build_model():
+    return GradientBoostingRegressor(n_estimators=200, learning_rate=0.05, max_depth=4, random_state=42)
 
 
 def is_cache_valid(ticker: str) -> bool:
@@ -234,61 +224,47 @@ def predict(req: PredictRequest):
     df = fetch_stock_data(req.ticker)
     prices = df["Close"].values
     split = int(len(prices) * 0.8)
-    model_path = f"{MODELS_DIR}/{req.ticker}.keras"
-
-    all_scaled_data = MinMaxScaler(feature_range=(0, 1)).fit_transform(prices.reshape(-1, 1))
+    model_path = f"{MODELS_DIR}/{req.ticker}.joblib"
+    scaler_path = f"{MODELS_DIR}/{req.ticker}_scaler.joblib"
 
     if is_cache_valid(req.ticker) and os.path.exists(model_path):
-        model = load_model(model_path)
-        # Load scaler params from meta
-        with open(f"{MODELS_DIR}/{req.ticker}_meta.json") as f:
-            meta = json.load(f)
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        scaler.fit(np.array(meta["price_range"]).reshape(-1, 1))
+        model = joblib.load(model_path)
+        scaler = joblib.load(scaler_path)
     else:
-        train_prices = prices[:split]
-        X_train, y_train, scaler = prepare_data(train_prices)
-        X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
-
-        model = build_lstm_model()
-        es = EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
-        model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.1, callbacks=[es], verbose=0)
-        model.save(model_path)
-
+        X_train, y_train, scaler = prepare_data(prices[:split])
+        model = build_model()
+        model.fit(X_train, y_train)
+        joblib.dump(model, model_path)
+        joblib.dump(scaler, scaler_path)
         with open(f"{MODELS_DIR}/{req.ticker}_meta.json", "w") as f:
-            json.dump({
-                "trained_at": datetime.now().isoformat(),
-                "price_range": [float(prices.min()), float(prices.max())]
-            }, f)
+            json.dump({"trained_at": datetime.now().isoformat(),
+                       "price_range": [float(prices.min()), float(prices.max())]}, f)
+
+    all_scaled = scaler.transform(prices.reshape(-1, 1))
 
     # Test predictions
-    all_scaled = scaler.transform(prices.reshape(-1, 1))
-    X_test = []
-    for i in range(split, len(all_scaled)):
-        X_test.append(all_scaled[i - LOOKBACK:i, 0])
-    X_test = np.array(X_test).reshape(-1, LOOKBACK, 1)
-    test_preds = scaler.inverse_transform(model.predict(X_test))
+    X_test = np.array([all_scaled[i - LOOKBACK:i, 0] for i in range(split, len(all_scaled))])
+    test_preds = scaler.inverse_transform(model.predict(X_test).reshape(-1, 1))
     actual = prices[split:]
 
     rmse = round(float(np.sqrt(mean_squared_error(actual, test_preds))), 4)
     mae = round(float(mean_absolute_error(actual, test_preds)), 4)
     r2 = round(float(r2_score(actual, test_preds)), 4)
 
-    # Future predictions
-    last_seq = all_scaled[-LOOKBACK:].reshape(1, LOOKBACK, 1)
+    # Future predictions (rolling)
+    seq = list(all_scaled[-LOOKBACK:, 0])
     future_preds = []
-    seq = last_seq.copy()
     last_date = df.index[-1]
     for i in range(req.days_ahead):
-        pred = model.predict(seq, verbose=0)[0][0]
+        pred = model.predict(np.array(seq[-LOOKBACK:]).reshape(1, -1))[0]
         future_preds.append(pred)
-        seq = np.append(seq[:, 1:, :], [[[pred]]], axis=1)
+        seq.append(pred)
 
     future_prices = scaler.inverse_transform(np.array(future_preds).reshape(-1, 1))
-    predictions = []
-    for i, price in enumerate(future_prices):
-        date = last_date + timedelta(days=i + 1)
-        predictions.append({"date": str(date.date()), "predicted_close": round(float(price[0]), 2)})
+    predictions = [
+        {"date": str((last_date + timedelta(days=i + 1)).date()), "predicted_close": round(float(p[0]), 2)}
+        for i, p in enumerate(future_prices)
+    ]
 
     historical = [
         {"date": str(idx.date()), "close": round(row.Close, 2)}
