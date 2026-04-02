@@ -200,11 +200,14 @@ def search_stocks(req: SearchRequest):
 def get_live_price(ticker: str):
     stock = yf.Ticker(ticker)
     info = stock.fast_info
+    domain = stock.info.get("website", "").replace("https://", "").replace("http://", "").replace("www.", "").split("/")[0]
     return {
         "ticker": ticker,
         "price": round(float(info.last_price), 2),
         "change": round(float(info.last_price - info.previous_close), 2),
         "change_pct": round(float((info.last_price - info.previous_close) / info.previous_close * 100), 2),
+        "logo": f"https://logo.clearbit.com/{domain}" if domain else None,
+        "name": stock.info.get("longName", ticker),
     }
 
 

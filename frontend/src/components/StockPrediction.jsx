@@ -147,7 +147,14 @@ export default function StockPrediction() {
       {/* Live Price */}
       {livePrice && (
         <div className="card" style={{ display: "inline-flex", alignItems: "center", gap: "1.5rem", marginBottom: "1.5rem", padding: "1rem 1.5rem" }}>
-          <span className="font-mono" style={{ fontWeight: 700, fontSize: "1.1rem" }}>{livePrice.ticker}</span>
+          {livePrice.logo && (
+            <img src={livePrice.logo} alt={livePrice.ticker} style={{ width: 32, height: 32, objectFit: "contain" }}
+              onError={(e) => e.target.style.display = "none"} />
+          )}
+          <div>
+            <div style={{ fontSize: "0.75rem", color: "#6B7280", fontFamily: "IBM Plex Sans" }}>{livePrice.name}</div>
+            <span className="font-mono" style={{ fontWeight: 700, fontSize: "1.1rem" }}>{livePrice.ticker}</span>
+          </div>
           <span className="font-mono tabular-nums" style={{ fontSize: "1.5rem", fontWeight: 700 }}>${livePrice.price}</span>
           <span className="font-mono tabular-nums" style={{
             fontSize: "1rem", fontWeight: 600,
